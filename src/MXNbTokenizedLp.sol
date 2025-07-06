@@ -85,16 +85,25 @@ contract MXNbTokenizedLp is
 
     address public feeRecipient;
     address public override affiliate;
+    uint256 public actionBlockDelay;
+    bool public activeDepositorWhitelist;
 
     string private _name;
     string private _symbol;
 
     mapping(address => uint256) private _callerDelayAction;
     mapping(address => bool) public approvedRebalancer;
-    uint256 public actionBlockDelay;
+    mapping(address => bool) public approvedDepositor;
 
     modifier isRebalancer() {
         if (!approvedRebalancer[msg.sender]) {
+            revert UniswapV3TokenizedLp_NotAllowed();
+        }
+        _;
+    }
+
+    modifier isDepositor() {
+        if (activeDepositorWhitelist && !approvedDepositor[msg.sender]) {
             revert UniswapV3TokenizedLp_NotAllowed();
         }
         _;
@@ -114,22 +123,13 @@ contract MXNbTokenizedLp is
     /**
      * @notice Initializes this instance of {UniV3TokenizedLp} based on the `_pool`.
      * @param _pool Uniswap V3 pool for which liquidity is managed
-     * @param _allowToken0 flag that indicates whether token0 is accepted during deposit
-     * @param _allowToken1 flag that indicates whether token1 is accepted during deposit
      * @param _usdOracle0Ref address of token0 USD oracle
      * @param _usdOracle1Ref address of token1 USD oracle
      * @dev `allowTokenX` params control whether this {UniV3TokenizedLp} allows one-sided or
      * two-sided liquidity provision.
      * NOTE: This contract must be initialized preferably along an atomic deposit(...)` call.
      */
-    constructor(address _pool, bool _allowToken0, bool _allowToken1, address _usdOracle0Ref, address _usdOracle1Ref)
-        ERC20("", "")
-        Ownable(msg.sender)
-    {
-        if (!_allowToken0 && !_allowToken1) {
-            revert UniswapV3TokenizedLp_NoAllowedTokens();
-        }
-
+    constructor(address _pool, address _usdOracle0Ref, address _usdOracle1Ref) ERC20("", "") Ownable(msg.sender) {
         pool = _pool;
         token0 = IUniswapV3Pool(_pool).token0();
         token1 = IUniswapV3Pool(_pool).token1();
@@ -138,8 +138,8 @@ contract MXNbTokenizedLp is
         _name = string(abi.encodePacked("LpToken: ", token0Symbol, "-", token1Symbol));
         _symbol = string(abi.encodePacked("Lp-", token0Symbol, "-", token1Symbol));
 
-        allowToken0 = _allowToken0;
-        allowToken1 = _allowToken1;
+        allowToken0 = true;
+        allowToken1 = true;
         tickSpacing = IUniswapV3Pool(_pool).tickSpacing();
         // increase pool observation cardinality
         IUniswapV3Pool(_pool).increaseObservationCardinalityNext(CARDINALITY);
@@ -172,6 +172,7 @@ contract MXNbTokenizedLp is
     function deposit(uint256 deposit0, uint256 deposit1, address to)
         external
         override
+        isDepositor
         nonReentrant
         returns (uint256 shares)
     {
@@ -287,6 +288,49 @@ contract MXNbTokenizedLp is
     }
 
     /// Setter Functions
+
+    /**
+     * @notice Sets the depositor whitelist status
+     * @param _isActive flag that indicates whether the depositor whitelist is active
+     */
+    function setActiveDepositorWhitelist(bool _isActive) external onlyOwner {
+        if (activeDepositorWhitelist == _isActive) {
+            revert UniswapV3TokenizedLp_AlreadySet();
+        }
+        activeDepositorWhitelist = _isActive;
+        emit DepositorWhitelistActive(_isActive);
+    }
+
+    /**
+     * @notice Sets the approved status of a depositor
+     * @param _depositor address of the depositor to be set
+     * @param _isApproved flag that indicates whether the depositor is approved
+     * @dev If the depositor is not approved, they will not be able to deposit
+     */
+    function setDepositor(address _depositor, bool _isApproved) external onlyOwner {
+        if (_depositor == NULL_ADDRESS) {
+            revert UniswapV3TokenizedLp_ZeroAddress();
+        }
+        if (approvedDepositor[_depositor] == _isApproved) {
+            revert UniswapV3TokenizedLp_AlreadySet();
+        }
+        approvedDepositor[_depositor] = _isApproved;
+        emit ApprovedDepositor(_depositor, _isApproved);
+    }
+
+    /**
+     * @notice Sets the token0 and token1 addresses that are allowed to be deposited
+     * @param _allowToken0 flag that indicates whether token0 is accepted during deposit
+     * @param _allowToken1 flag that indicates whether token1 is accepted during deposit
+     */
+    function setAlowedTokens(bool _allowToken0, bool _allowToken1) external onlyOwner {
+        if (allowToken0 == _allowToken0 && allowToken1 == _allowToken1) {
+            revert UniswapV3TokenizedLp_AlreadySet();
+        }
+        allowToken0 = _allowToken0;
+        allowToken1 = _allowToken1;
+        emit AllowedTokens(_allowToken0, _allowToken1);
+    }
 
     /**
      * @notice Sets the usdOracle0Ref and usdOracle1Ref addresses

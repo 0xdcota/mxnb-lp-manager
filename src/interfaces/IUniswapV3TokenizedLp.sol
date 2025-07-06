@@ -4,9 +4,7 @@ pragma solidity ^0.8.0;
 interface IUniswapV3TokenizedLp {
     /// Events
     event Deposit(address indexed sender, address indexed to, uint256 shares, uint256 amount0, uint256 amount1);
-
     event Withdraw(address indexed sender, address indexed to, uint256 shares, uint256 amount0, uint256 amount1);
-
     event Rebalance(
         int24 tick,
         uint256 totalAmount0,
@@ -15,28 +13,20 @@ interface IUniswapV3TokenizedLp {
         uint256 feeAmount1,
         uint256 totalSupply
     );
-
     event MaxTotalSupply(uint256 newMaxTotalSupply);
-
     event Hysteresis(uint256 newHysteresis);
-
     event DepositMax(uint256 newDeposit0Max, uint256 newDeposit1Max);
-
     event Affiliate(address affiliate);
-
     event ApprovedRebalancer(address rebalancer, bool isApproved);
-
     event FeeUpdate(uint256 newFee);
-
     event FeeRecipient(address newFeeRecipient);
-
     event FeeSplit(uint256 newFeeSplit);
-
     event UsdOracleReferences(address usd0RefOracle, address usd1RefOracle);
-
     event BpsRanges(uint256 newBpsRangeLower, uint256 newBpsRangeUpper);
-
     event ActionBlockDelay(uint256 newBlockWaitTime);
+    event AllowedTokens(bool allowToken0, bool allowToken1);
+    event DepositorWhitelistActive(bool isActive);
+    event ApprovedDepositor(address depositor, bool isApproved);
 
     /// Errors
 
@@ -63,6 +53,7 @@ interface IUniswapV3TokenizedLp {
     error UniswapV3TokenizedLp_SetBaseTicksViaRebalanceFirst();
     error UniswapV3TokenizedLp_NotAllowed();
     error UniswapV3TokenizedLp_NoWithdrawOrTransferDuringDelay();
+    error UniswapV3TokenizedLp_AlreadySet();
 
     /// View methods
     function pool() external view returns (address);
