@@ -38,7 +38,7 @@ import {ReentrancyGuard} from "@openzeppelin/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/access/Ownable.sol";
 import {IPriceFeed} from "./interfaces/IPriceFeed.sol";
 
-contract MXNbTokenizedLp is
+contract MxnbLpManager is
     IUniswapV3TokenizedLp,
     IUniswapV3MintCallback,
     IUniswapV3SwapCallback,
